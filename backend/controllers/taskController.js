@@ -290,12 +290,12 @@ const getDashboardData = async (req, res) => {
 
     // Ensure all priority level are included
     const taskPriorities = ["Low", "Medium", "High"];
-    const taskPriorityLevelRaw = await Task.aggregate({
+    const taskPriorityLevelRaw = await Task.aggregate([{
       $group: {
         _id: "$priority",
         count: { $sum: 1 },
       },
-    });
+    }]);
     const taskPriorityLevels = taskPriorities.reduce((acc, priority) => {
       acc[priority] =
         taskPriorityLevelRaw.find((item) => item._id === priority)?.count || 0;
