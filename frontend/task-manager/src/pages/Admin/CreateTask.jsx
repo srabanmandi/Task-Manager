@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import DashboardLayout from "../../components/layouts/DashboardLayout";
 import { PRIORITY_DATA } from "../../utils/data";
 import axiosInstance from "../../utils/axiosInstance";
@@ -11,6 +11,8 @@ import SelectDropdown from "../../components/inputs/SelectDropdown";
 import SelectUsers from "../../components/inputs/SelectUsers";
 import TodoListInput from "../../components/inputs/TodoListInput";
 import AddAttachmentsInput from "../../components/inputs/AddAttachmentsInput";
+import Modal from "../../components/Modal";
+import DeleteAlert from "../../components/DeleteAlert";
 
 function CreateTask() {
   const location = useLocation();
@@ -53,63 +55,89 @@ function CreateTask() {
 
   // Create Task
   const createTask = async () => {
-    setLoading(true)
+    setLoading(true);
 
     try {
       const todoList = taskData.todoCheckList?.map((item) => ({
         text: item,
         completed: false,
-      }))
+      }));
 
       await axiosInstance.post(API_PATHS.TASKS.CREATE_TASK, {
         ...taskData,
         dueDate: new Date(taskData.dueDate).toISOString(),
         todoCheckList: todoList,
-      })
+      });
 
-      toast.success("Task Created Successfully")
+      toast.success("Task Created Successfully");
 
       clearData();
     } catch (error) {
       console.error("Error creating task:", error);
-      setLoading(false)
+      setLoading(false);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   };
 
   // Update Task
-  const updateTask = async () => {};
+  const updateTask = async () => {
+    setLoading(true);
+
+    try {
+      const todoList = taskData.todoCheckList?.map((item) => {
+        const prevTodoCheckList = currentTask?.todoCheckList || [];
+        const matchedTask = prevTodoCheckList.find((task) => task.text == item);
+
+        return {
+          text: item,
+          completed: matchedTask ? matchedTask.completed : false,
+        };
+      });
+
+      await axiosInstance.put(API_PATHS.TASKS.UPDATE_TASK(taskId), {
+        ...taskData,
+        dueDate: new Date(taskData.dueDate).toISOString(),
+        todoCheckList: todoList,
+      });
+
+      toast.success("Task Updated Successfully");
+    } catch (error) {
+      console.error("Error crearting task:", error);
+      setLoading(false);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async () => {
-    setError(null)
-     
+    setError(null);
+
     // Input validation
-    if(!taskData.title.trim()) {
-      setError("Title is required.")
+    if (!taskData.title.trim()) {
+      setError("Title is required.");
       return;
     }
-    if(!taskData.description.trim()) {
-      setError("Description is required.")
+    if (!taskData.description.trim()) {
+      setError("Description is required.");
       return;
     }
-    if(!taskData.dueDate){
-      setError("Due date is required.")
+    if (!taskData.dueDate) {
+      setError("Due date is required.");
       return;
     }
 
-
-    if(!taskData.assignedTo?.length === 0) {
+    if (!taskData.assignedTo?.length === 0) {
       setError("Task not assigned to any member");
       return;
     }
 
-    if(taskData.todoCheckList?.length === 0) {
-      setError("Add atleast one todo task")
+    if (taskData.todoCheckList?.length === 0) {
+      setError("Add atleast one todo task");
       return;
     }
 
-    if(taskId) {
+    if (taskId) {
       updateTask();
       return;
     }
@@ -118,10 +146,58 @@ function CreateTask() {
   };
 
   // Get Task info by ID
-  const getTaskDetailsByID = async () => {};
+  const getTaskDetailsByID = async () => {
+    try {
+      const response = await axiosInstance.get(
+        API_PATHS.TASKS.GET_TASKS_BY_ID(taskId)
+      );
+      if (response.data) {
+        const taskInfo = response.data;
+        setCurrentTask(taskInfo);
+
+        console.log(taskInfo.todoCheckList);
+
+        setTaskData(() => ({
+          title: taskInfo.title,
+          description: taskInfo.description,
+          priority: taskInfo.priority,
+          dueDate: taskInfo.dueDate
+            ? moment(taskInfo.dueDate).format("YYYY-MM-DD")
+            : null,
+          assignedTo: taskInfo?.assignedTo?.map((item) => item._id) || [],
+          todoCheckList:
+            taskInfo?.todoCheckList?.map((item) => item?.text) || [],
+          attachments: taskInfo?.attachments || [],
+        }));
+      }
+    } catch (error) {
+      console.error("Error fetching tasks:", error);
+    }
+  };
 
   // Delete Task
-  const deleteTask = async () => {};
+  const deleteTask = async () => {
+    try {
+      await axiosInstance.delete(API_PATHS.TASKS.DELETE_TASK(taskId));
+
+      setOpenDeleteAlert(false);
+      toast.success("Task details deleted successfully");
+      navigate("/admin/manage-tasks");
+    } catch (error) {
+      console.error(
+        "Error deleting task:",
+        error.message?.data?.message || error.message
+      );
+    }
+  };
+
+  useEffect(() => {
+    if (taskId) {
+      getTaskDetailsByID(taskId);
+    }
+
+    return () => {};
+  });
 
   return (
     <DashboardLayout activeMenu="Create Task">
@@ -261,13 +337,28 @@ function CreateTask() {
             )}
 
             <div className="flex justify-end mt-7">
-              <button className="add-btn" onClick={handleSubmit} disabled={loading}>
+              <button
+                className="add-btn"
+                onClick={handleSubmit}
+                disabled={loading}
+              >
                 {taskId ? "UPDATE TASK" : "CREATE TASK"}
               </button>
             </div>
           </div>
         </div>
       </div>
+
+      <Modal
+        isOpen={openDeleteAlert}
+        onClose={() => setOpenDeleteAlert(false)}
+        title="Delete Task"
+      >
+        <DeleteAlert
+          content="Are you sure you want to delete this task?"
+          onDelete={() => deleteTask()}
+        />
+      </Modal>
     </DashboardLayout>
   );
 }

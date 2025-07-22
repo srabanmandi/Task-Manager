@@ -54,11 +54,11 @@ function App() {
         </Router>
       </div>
 
-      <Toaster 
+      <Toaster
         toastOptions={{
           className: "",
           style: {
-            fontSize: "13px"
+            fontSize: "13px",
           },
         }}
       />
