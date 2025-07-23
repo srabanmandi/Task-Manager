@@ -237,12 +237,13 @@ const updateTaskChecklist = async (req, res) => {
 
     // Auto-mark task as completed if all items are checked
     if (task.progress === 100) {
-      task.status === "Completed";
+      task.status = "Completed";
     } else if (task.progress > 0) {
-      task.status === "In Progress";
+      task.status = "In Progress";
     } else {
-      task.status === "Pending";
+      task.status = "Pending";
     }
+
 
     await task.save();
     const updatedTask = await Task.findById(req.params.id).populate(
@@ -290,12 +291,14 @@ const getDashboardData = async (req, res) => {
 
     // Ensure all priority level are included
     const taskPriorities = ["Low", "Medium", "High"];
-    const taskPriorityLevelRaw = await Task.aggregate([{
-      $group: {
-        _id: "$priority",
-        count: { $sum: 1 },
+    const taskPriorityLevelRaw = await Task.aggregate([
+      {
+        $group: {
+          _id: "$priority",
+          count: { $sum: 1 },
+        },
       },
-    }]);
+    ]);
     const taskPriorityLevels = taskPriorities.reduce((acc, priority) => {
       acc[priority] =
         taskPriorityLevelRaw.find((item) => item._id === priority)?.count || 0;
@@ -359,7 +362,7 @@ const getUserDashboardData = async (req, res) => {
     const taskDistribution = taskStatuses.reduce((acc, status) => {
       const formattedKey = status.replace(/\s+/g, "");
       acc[formattedKey] =
-        taskDistribution.find((item) => item._id === status)?.count || 0;
+        taskDistributionRaw.find((item) => item._id === status)?.count || 0;
       return acc;
     }, {});
     taskDistribution["All"] = totalTasks;
@@ -382,19 +385,19 @@ const getUserDashboardData = async (req, res) => {
       .limit(10)
       .select("title status priority dueDate createdAt");
 
-      res.status(200).json({
-        statistics: {
-          totalTasks,
-          pendingTasks,
-          completedTasks,
-          overdueTasks,
-        },
-        charts: {
-          taskDistribution,
-          taskPriorityLevels,
-        },
-        recentTasks,
-      });
+    res.status(200).json({
+      statistics: {
+        totalTasks,
+        pendingTasks,
+        completedTasks,
+        overdueTasks,
+      },
+      charts: {
+        taskDistribution,
+        taskPriorityLevels,
+      },
+      recentTasks,
+    });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }

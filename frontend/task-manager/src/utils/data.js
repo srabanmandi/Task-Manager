@@ -42,7 +42,7 @@ export const SIDE_MENU_DATA = [
 export const SIDE_MENU_USER_DATA = [
     {
         id:"01",
-        title:"Dashboard",
+        label:"Dashboard",
         icon:LuLayoutDashboard,
         path:"/user/dashboard",
     },
